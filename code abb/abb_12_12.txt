@@ -1,0 +1,256 @@
+MODULE MainModule
+
+    VAR syncident syncHome;
+
+    PERS tasks task_All{2}:=[["T_ROB_L"],["T_ROB_R"]];
+
+    VAR syncident sync01_0;
+    VAR syncident sync01_1;
+    VAR syncident sync01_2;
+    VAR syncident sync01_3;
+    VAR syncident sync01_4;
+    VAR syncident sync01_5;
+    VAR syncident sync01_6;
+    VAR syncident sync01_7;
+    VAR syncident sync01_8;
+    VAR syncident sync01_9;
+  
+    CONST jointtarget home_joint_R:=[[0,-130,30,0,40,0],[-135, 9E9, 9E9, 9E9, 9E9, 9E9]];
+     CONST robtarget Cap_pose:=[[307.57,-185.05,239.10],[0.650995,-0.758804,-0.0130378,-0.0158432],[1,0,1,4],[169.065,9E+09,9E+09,9E+09,9E+09,9E+09]];
+     CONST robtarget p20:=[[301.72,-196.35,239.10],[0,0,0,0],[1,0,1,4],[169.066,9E+09,9E+09,9E+09,9E+09,9E+09]];
+    
+    VAR socketdev server;
+    VAR socketdev client;
+   ! VAR string message;
+    VAR rawbytes data;
+    VAR string rcv_data;
+    VAR string Center_Signal;
+    
+    
+    
+    VAR num flag;
+    PERS num Scale_X_Cir:=27;
+    PERS num Scale_Y_Cir:=31;
+    PERS num Scale_X_Rec:=144;
+    PERS num Scale_Y_Rec:=85;
+    
+    VAR num Scale_X_Cir_;
+    VAR num Scale_Y_Cir_;
+    VAR num Scale_X_Rec_;
+    VAR num Scale_Y_Rec_;
+    VAR string flag_;
+    
+    VAR bool bResult;
+    
+    CONST robtarget p30:=[[307.58,-185.04,239.12],[0.685451,-0.727714,-0.0226989,-0.00854593],[1,0,1,4],[169.064,9E+09,9E+09,9E+09,9E+09,9E+09]];
+    
+    PROC main()
+      SocketCreate client;
+      SocketConnect client, "192.168.125.5" ,65432;
+      TPErase;
+      TPWrite "Connection Successful";
+      
+   !   SocketAccept server,client, \Time:=WAIT_MAX;
+      SocketSend client,\Str:=" hello server!";
+      rcv_data := " ";
+      
+    WaitSyncTask sync01_1,task_All;   
+    SyncMoveOn sync01_2,task_All;
+    MoveAbsJ home_joint_R\ID:=101, v1000, z0, tool0;
+ !   MoveJ home\ID:=101,v100,z50,tool0;
+    SyncMoveOff sync01_3;
+   
+      WHILE rcv_data <> "x" DO
+          TPWrite "Start wait _____";
+          SocketReceive client \Str:= rcv_data\Time:=1000;
+         IF rcv_data ="home"  THEN
+           MoveAbsJ home_joint_R, v1000, z0, tool0;
+         ENDIF
+         
+        IF rcv_data ="Start"  THEN
+            TPWrite "Go to the capture position";
+            MoveJ [[163.25,-329.41,208.68],[0.0218428,-0.85309,-0.107468,-0.510109],[0,-1,1,4],[-100.882,9E+09,9E+09,9E+09,9E+09,9E+09]], v1000, z200, tool0;
+            MoveJ [[181.20,-339.04,213.17],[0.675818,-0.596382,0.239381,-0.360963],[0,0,1,4],[-123.112,9E+09,9E+09,9E+09,9E+09,9E+09]], v1000, z200, tool0;
+		    MoveJ Cap_pose, v1000, z0, tool0;
+            
+            WaitTime 1;
+            SocketSend client,\Str:="32";
+            TPWrite "Has send Trigger Signal to Cognex Cam";
+            
+            WaitTime 5; !Doi cam chup
+            SocketSend client,\Str:="Done_Capture";
+            TPWrite "Has send 'Done_Capture'";
+            TPWrite "-----------------------";
+            
+            MoveAbsJ home_joint_R, v1000, z0, tool0;
+            SocketReceive client \Str:= rcv_data;
+            TPWrite rcv_data;
+            WaitTime 1;
+            
+            Center_Signal := " ";
+            WHILE Center_Signal <> "x" DO
+                
+                TPWrite "Wait center_sig";
+                SocketReceive client \Str:= rcv_data\Time:=1000;
+                flag := 1000;
+                flag :=StrFind(rcv_data,1,";");
+                TPWrite rcv_data;
+                flag_ := NumToStr(flag,0);
+                TPWrite flag_;
+                
+                IF flag <> 1000 and flag = 3 THEN
+                    
+                    Scale_X_Cir_:=StrFind(rcv_data,1,";");
+                    Scale_Y_Cir_:=StrFind(rcv_data,Scale_X_Cir_ + 1,";");
+                    Scale_X_Rec_:=StrFind(rcv_data,Scale_Y_Cir_ + 1,";");
+                    Scale_Y_Rec_:=StrFind(rcv_data,Scale_X_Rec_ + 1,";");
+                    
+                    if StrPart(rcv_data,1,Scale_X_Cir_-1) <> "None" THEN
+                        bResult:=StrtoVal(StrPart(rcv_data,1,Scale_X_Cir_-1),Scale_X_Cir);
+                        bResult:=StrtoVal(StrPart(rcv_data,Scale_X_Cir_ + 1,Scale_Y_Cir_ - Scale_X_Cir_ - 1),Scale_Y_Cir);
+                    ENDIF
+                    
+                    if StrPart(rcv_data,Scale_Y_Cir_ + 1,Scale_X_Rec_ - Scale_Y_Cir_ - 1) <> "None" THEN
+                        bResult:=StrtoVal(StrPart(rcv_data,Scale_Y_Cir_ + 1,Scale_X_Rec_ - Scale_Y_Cir_ - 1),Scale_X_Rec);
+                        bResult:=StrtoVal(StrPart(rcv_data,Scale_X_Rec_ + 1,Scale_Y_Rec_ - Scale_X_Rec_ - 1),Scale_Y_Rec);
+                    ENDIF
+
+                    TPWrite "Pre_pick";
+                    TPWrite rcv_data;
+                    WaitSyncTask sync01_4,task_All;
+                    TPWrite "Doing_Pick";
+                    WaitSyncTask sync01_5,task_All;
+                    TPWrite "Done_Pick";
+                    flag := 1000;
+                ENDIF
+                
+            Endwhile
+            
+         ENDIF
+         
+         IF rcv_data ="move"  THEN
+            MoveJ [[163.25,-329.41,208.68],[0.0218428,-0.85309,-0.107468,-0.510109],[0,-1,1,4],[-100.882,9E+09,9E+09,9E+09,9E+09,9E+09]], v1000, z200, tool0;
+            MoveJ [[181.20,-339.04,213.17],[0.675818,-0.596382,0.239381,-0.360963],[0,0,1,4],[-123.112,9E+09,9E+09,9E+09,9E+09,9E+09]], v1000, z200, tool0;
+		    MoveJ Cap_pose, v1000, z0, tool0;
+
+         ENDIF
+  !       flag := 1000;
+  !       flag :=StrFind(rcv_data,1,";");
+        
+    !    IF flag <> 1000 THEN
+    !        TPWrite rcv_data;
+     !       flag := 1000;
+     !   ENDIF
+      ENDWHILE
+      
+    !SocketClose server;
+      SocketClose client;
+    ENDPROC
+ENDMODULE
+
+
+
+MODULE MainModule
+    CONST robtarget HomeL:=[[-8.88,181.45,197.44],[0.0562826,0.840162,-0.130281,0.523438],[0,0,0,4],[102.093,9E+09,9E+09,9E+09,9E+09,9E+09]];
+    CONST robtarget Pre_HomeL:=[[26.39,428.32,242.51],[0.0562577,0.840114,-0.130248,0.523526],[0,0,0,4],[102.097,9E+09,9E+09,9E+09,9E+09,9E+09]];
+
+
+    VAR syncident syncHome;
+
+    PERS tasks task_All{2}:=[["T_ROB_L"],["T_ROB_R"]];
+
+    VAR syncident sync01_0;
+    VAR syncident sync01_1;
+    VAR syncident sync01_2;
+    VAR syncident sync01_3;
+    VAR syncident sync01_4;
+    VAR syncident sync01_5;
+    VAR syncident sync01_6;
+    VAR syncident sync01_7;
+    VAR syncident sync01_8;
+    VAR syncident sync01_9;
+
+    VAR syncident sync01_10;
+    VAR syncident sync01_11;
+    VAR syncident sync01_12;
+    VAR syncident sync01_13;
+    VAR syncident sync01_14;
+    VAR syncident sync01_15;
+    VAR syncident sync01_16;
+    VAR syncident sync01_17;
+    VAR syncident sync01_18;
+    VAR syncident sync01_19;
+    
+    CONST jointtarget home_joint_L:=[[0,-130,30,0,40,0],[135, 9E9, 9E9, 9E9, 9E9, 9E9]];
+    CONST robtarget Pick_L:=[[271.93,-184.27,142.13],[0.286082,0.650509,0.271824,-0.648928],[-2,0,2,4],[-128.536,9E+09,9E+09,9E+09,9E+09,9E+09]];
+
+    PERS num Scale_X_Cir;
+    PERS num Scale_Y_Cir;
+    PERS num Scale_X_Rec;
+    PERS num Scale_Y_Rec;
+    
+    VAR num offset:=15;
+    VAR num height_obj:=10;
+    CONST robtarget Pre_pick_L10:=[[282.13,121.61,157.44],[0.28607,0.650506,0.271828,-0.648934],[-1,0,2,4],[-128.534,9E+09,9E+09,9E+09,9E+09,9E+09]];
+    CONST robtarget Home3:=[[356.22,303.96,157.45],[0.515342,0.489375,0.496558,-0.498362],[-1,0,2,4],[-160.819,9E+09,9E+09,9E+09,9E+09,9E+09]];
+    CONST robtarget PlaceRec:=[[312.34,467.09,121.65],[0.515395,0.489274,0.496624,-0.498342],[-1,0,2,4],[-165.444,9E+09,9E+09,9E+09,9E+09,9E+09]];
+    CONST robtarget PlaceCir:=[[312.34,392.96,121.65],[0.515394,0.489274,0.496623,-0.498343],[-1,0,2,4],[-165.443,9E+09,9E+09,9E+09,9E+09,9E+09]];
+    CONST robtarget Home2:=[[175.42,303.96,223.02],[0.515339,0.489367,0.496556,-0.498375],[0,0,2,4],[133.861,9E+09,9E+09,9E+09,9E+09,9E+09]];
+    CONST robtarget Home1:=[[105.22,347.61,237.14],[0.0384974,-0.729155,0.612553,-0.302704],[0,1,0,4],[106.395,9E+09,9E+09,9E+09,9E+09,9E+09]];
+    CONST robtarget Pre_Place:= [[309.73,155.09,223.02],[0.515326,0.489359,0.496546,-0.498406],[-1,1,1,4],[133.859,9E+09,9E+09,9E+09,9E+09,9E+09]];
+
+    
+    PROC main()
+
+        WaitSyncTask sync01_1,task_All;
+        SyncMoveOn sync01_2,task_All;
+        MoveAbsJ home_joint_L\ID:=101, v1000, z0, tool0;
+        SyncMoveOff sync01_3;
+  
+        WHILE TRUE do
+        WaitSyncTask sync01_4,task_All;
+        MOvej Home1, v1000,z200,tool0;
+        MOvej Home2, v1000,z200,tool0;
+
+        
+        IF Scale_X_Cir <> 0 THEN
+          !  MoveJ Pre_pick_L, v1000, z200,tool0;
+            MoveL Offs(Pick_L, Scale_X_Cir, Scale_Y_Cir, offset),v500,z50,tool0;
+            g_VacuumOn1\threshold:=100;
+            Waittime (1);
+            MoveL Offs(Pick_L, Scale_X_Cir, Scale_Y_Cir, 0),v50,z0,tool0; !PICK
+            MoveL Offs(Pick_L, Scale_X_Cir, Scale_Y_Cir, offset),v500,z50,tool0;
+            MoveL Pre_Place, v1000, z200, tool0;
+            MoveL PlaceCir, V200, z0, tool0;
+            waittime 1;
+            g_VacuumOff1;
+
+        ENDIF
+        
+        IF Scale_X_Rec <> 0 THEN
+            
+            IF Scale_X_Cir <> 0 THEN
+                MOvej Home2, v1000,z200,tool0;
+            ENDIF
+            
+           ! MoveJ Pre_pick_L, v1000, z200,tool0;
+            MoveL Offs(Pick_L, Scale_X_Rec, Scale_Y_Rec, offset),v500,z50,tool0;
+            g_VacuumOn1\threshold:=100;
+            Waittime (1);
+            MoveL Offs(Pick_L, Scale_X_Rec, Scale_Y_Rec, 0 ),v50,z0,tool0;
+            MoveL Offs(Pick_L, Scale_X_Rec, Scale_Y_Rec, offset),v500,z50,tool0;
+            MoveL Pre_Place, v1000, z200, tool0;
+            MoveL PlaceRec, V200, z0, tool0;
+            waittime 1;
+            g_VacuumOff1;
+            
+        
+        ENDIF
+        WaitSyncTask sync01_5,task_All;
+        MOveL Home2, v1000,z200,tool0;
+        MOvej Home1, v1000,z200,tool0;
+        MoveAbsJ home_joint_L, v1000, z0, tool0;
+        ENDWHILE
+        
+    ENDPROC
+ENDMODULE
