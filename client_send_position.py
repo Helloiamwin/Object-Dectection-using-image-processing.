@@ -35,7 +35,7 @@ def Invert_Coor_Left_Top(center): #To tranfer size image from camera to real
 
     return [h_real, w_real]
 
-def Invert_Coor(center): #To tranfer size image from camera to real 
+def Convert_Coor(center): #To tranfer size image from camera to real 
     
     w_real = center[0]
     h_real = center[1]
@@ -97,7 +97,7 @@ def Processing():
             cv2.circle(image, center, radius, (255, 0, 255), 3)
             print("The Circle Dectected: Center = (%2.2f, %2.2f), Radius = %2.2f"%(i[0], i[1], i[2]))
 
-            center = Invert_Coor(center)
+            center = Convert_Coor(center)
             center_shape.append(center)
     else:
         print("Do not dectect the Circle")
@@ -147,8 +147,8 @@ def Processing():
         y_cen = int(np.floor(abs(abs(cent_list[0][1]+cent_list[1][1]))/2))
         cv2.drawMarker(image, (x_cen, y_cen),(255,0,255), markerType=cv2.MARKER_STAR, markerSize=40, thickness=1, line_type=cv2.LINE_AA)
         print("The rectangle dectected: Center = (%2.2f, %2.2f), Side length= %2.2f"%(x_cen, y_cen, d_break))
-        Invert_Coor([x_cen,y_cen])
-        center_shape.append(Invert_Coor([x_cen,y_cen]))
+        #Invert_Coor([x_cen,y_cen])
+        center_shape.append(Convert_Coor([x_cen,y_cen]))
     else:
         print("Do not dectect the Rectangle")
         center_shape.append([None, None])
