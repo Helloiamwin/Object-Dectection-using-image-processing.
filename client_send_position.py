@@ -13,13 +13,13 @@ SERVER_PORT = 65432
 FORMAT = "utf8"
 
 def Get_path_img(): #To get the path path of image that contain the last image had captured
-    path = 'E:\\Year4_Sec1\\Image_Pro\\final_exam\\data\\test_12_12' #The folder for saving image
+    path = 'E:\\Year4_Sec1\\Image_Pro\\final_exam\\official\\test_12_12' #The folder for saving image
     path_img = ''
     for i in os.listdir(path):
         path_img = i
     return path +'\\'+ path_img
   
-def Invert_Coor(center): #To tranfer size image from camera to real 
+def Invert_Coor_Left_Top(center): #To tranfer size image from camera to real 
     
     w_real = center[0]
     h_real = center[1]
@@ -35,6 +35,28 @@ def Invert_Coor(center): #To tranfer size image from camera to real
 
     return [h_real, w_real]
 
+def Invert_Coor(center): #To tranfer size image from camera to real 
+    
+    w_real = center[0]
+    h_real = center[1]
+
+    h_origin = 78 #mm  278.17; -168.86  --> 356.27; -58.96
+    w_origin = 110
+
+    h_pixel = 960 # HD image
+    w_pixel = 1280
+
+    if w_real > (w_pixel/2):
+        w_real = int(np.floor(((w_real-(w_pixel/2))/(w_pixel/2))*(w_origin/2)))
+    else:
+        w_real = -(int(np.floor((((w_pixel/2)-w_real)/(w_pixel/2))*(w_origin/2))))
+
+    if h_real > (h_pixel/2):
+        h_real = int(np.floor(((h_real-(h_pixel/2))/(h_pixel/2))*(h_origin/2)))
+    else:
+        h_real = -(int(np.floor((((h_pixel/2)-h_real)/(h_pixel/2))*(h_origin/2))))
+
+    return [h_real, w_real]
 
 def Processing():
     path = Get_path_img()
